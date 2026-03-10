@@ -70,13 +70,20 @@ jobs:
     needs: build-and-push
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
+      - name: Skip if no Railway token
+        if: env.RAILWAY_TOKEN == ''
+        run: echo "No RAILWAY_TOKEN configured — skipping deploy." && exit 0
+
       - uses: actions/checkout@v4
+        if: env.RAILWAY_TOKEN != ''
 
       - name: Install Railway CLI
+        if: env.RAILWAY_TOKEN != ''
         run: npm install -g @railway/cli
 
       - name: Deploy
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        if: env.RAILWAY_TOKEN != ''
         run: railway up --detach
