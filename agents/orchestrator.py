@@ -20,7 +20,7 @@ from langgraph.graph import END, StateGraph
 
 from config.settings import settings
 from database.db import upsert_interaction
-from tools.search_docs import search_revenuecat_docs
+from tools.search_docs import search_knowledge_base
 from tools.validator import validate_code
 from tools.x_api import reply_to_tweet
 
@@ -67,9 +67,9 @@ async def classify_tweet(state: AgentState) -> dict:
 
 async def retrieve_docs(state: AgentState) -> dict:
     """Fetch relevant documentation from the knowledge base."""
-    results = await search_revenuecat_docs(state["tweet_text"], limit=4)
+    results = await search_knowledge_base(state["tweet_text"], top_k=4)
     context = "\n---\n".join(
-        f"[{r.get('section', '')}] {r['content']}" for r in results
+        f"[{r['source']}] {r['content']}" for r in results
     )
     return {"docs_context": context}
 

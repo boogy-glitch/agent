@@ -51,14 +51,35 @@ class Settings:
         default_factory=lambda: os.environ.get("FIRECRAWL_API_KEY", "")
     )
 
+    # Voyage AI (embeddings)
+    voyage_api_key: str = field(
+        default_factory=lambda: os.environ.get("VOYAGE_API_KEY", "")
+    )
+
     # Embedding config
-    embedding_model: str = "text-embedding-3-small"
+    embedding_model: str = "voyage-3"
+    embedding_model_fallback: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
+
+    # Ingestion
+    chunk_max_tokens: int = 800
+    chunk_overlap_tokens: int = 100
 
     # Agent behaviour
     max_reply_length: int = 280
     similarity_threshold: float = 0.78
     memory_compaction_interval_hours: int = 6
+
+    # RevenueCat docs URLs to ingest
+    docs_urls: tuple[str, ...] = (
+        "https://www.revenuecat.com/docs/",
+        "https://www.revenuecat.com/docs/getting-started",
+        "https://www.revenuecat.com/docs/ios",
+        "https://www.revenuecat.com/docs/android",
+        "https://www.revenuecat.com/docs/flutter",
+        "https://www.revenuecat.com/docs/react-native",
+        "https://www.revenuecat.com/docs/unity",
+    )
 
 
 settings = Settings()

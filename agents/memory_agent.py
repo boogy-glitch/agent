@@ -18,7 +18,7 @@ from database.db import (
     get_supabase,
     upsert_memory_nugget,
 )
-from tools.search_docs import _embed
+from tools.search_docs import embed
 
 llm = ChatAnthropic(
     model=settings.claude_model,
@@ -74,7 +74,7 @@ async def compact_memories() -> int:
 
     created = 0
     for n in nuggets:
-        embedding = _embed(f"{n['concept']} {n['summary']}")
+        embedding = embed(f"{n['concept']} {n['summary']}")
         await upsert_memory_nugget(
             {
                 "concept": n["concept"],
