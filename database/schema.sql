@@ -24,6 +24,7 @@ CREATE TABLE interactions (
     code_snippet TEXT,
     code_validated BOOLEAN DEFAULT FALSE,
     status TEXT DEFAULT 'PENDING_APPROVAL',
+    compacted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -60,3 +61,12 @@ CREATE INDEX idx_interactions_status ON interactions (status);
 CREATE INDEX idx_interactions_tweet_id ON interactions (tweet_id);
 CREATE INDEX idx_insight_reports_week ON insight_reports (week_start);
 CREATE INDEX idx_memory_nuggets_importance ON memory_nuggets (importance DESC);
+CREATE INDEX idx_interactions_compacted ON interactions (compacted) WHERE compacted = FALSE;
+
+-- RPC function to atomically increment memory nugget usage count
+CREATE OR REPLACE FUNCTION increment_usage_count(row_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE memory_nuggets SET usage_count = usage_count + 1 WHERE id = row_id;
+END;
+$$ LANGUAGE plpgsql;

@@ -136,6 +136,30 @@ async def update_interaction_status(interaction_id: str, status: str) -> None:
     ).execute()
 
 
+async def get_uncompacted_interactions(limit: int = 10) -> list[dict[str, Any]]:
+    """Return successful interactions that haven't been compacted yet."""
+    sb = get_supabase()
+    resp = (
+        sb.table("interactions")
+        .select("*")
+        .eq("status", "APPROVED")
+        .eq("compacted", False)
+        .order("created_at", desc=False)
+        .limit(limit)
+        .execute()
+    )
+    return resp.data
+
+
+async def mark_interactions_compacted(interaction_ids: list[str]) -> None:
+    """Mark a batch of interactions as compacted."""
+    sb = get_supabase()
+    for iid in interaction_ids:
+        sb.table("interactions").update({"compacted": True}).eq(
+            "id", iid
+        ).execute()
+
+
 # ---------------------------------------------------------------------------
 # Memory-nugget helpers
 # ---------------------------------------------------------------------------

@@ -15,6 +15,7 @@ class Settings:
         default_factory=lambda: os.environ["ANTHROPIC_API_KEY"]
     )
     claude_model: str = "claude-sonnet-4-20250514"
+    claude_model_haiku: str = "claude-haiku-4-5-20251001"
 
     # Supabase (Postgres + pgvector)
     supabase_url: str = field(
@@ -69,6 +70,10 @@ class Settings:
     max_reply_length: int = 280
     similarity_threshold: float = 0.78
     memory_compaction_interval_hours: int = 6
+    memory_compaction_interval_minutes: int = 30
+    memory_compaction_min_interactions: int = 5
+    memory_high_confidence: float = 0.85
+    memory_low_confidence: float = 0.60
 
     # RevenueCat docs URLs to ingest
     docs_urls: tuple[str, ...] = (
