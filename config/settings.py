@@ -75,6 +75,11 @@ class Settings:
     memory_high_confidence: float = 0.85
     memory_low_confidence: float = 0.60
 
+    # Slack
+    slack_webhook_url: str = field(
+        default_factory=lambda: os.environ.get("SLACK_WEBHOOK_URL", "")
+    )
+
     # Dashboard
     dashboard_password: str = field(
         default_factory=lambda: os.environ.get("DASHBOARD_PASSWORD", "")
