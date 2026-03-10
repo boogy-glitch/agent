@@ -75,6 +75,11 @@ class Settings:
     memory_high_confidence: float = 0.85
     memory_low_confidence: float = 0.60
 
+    # Dashboard
+    dashboard_password: str = field(
+        default_factory=lambda: os.environ.get("DASHBOARD_PASSWORD", "")
+    )
+
     # RevenueCat docs URLs to ingest
     docs_urls: tuple[str, ...] = (
         "https://www.revenuecat.com/docs/",
