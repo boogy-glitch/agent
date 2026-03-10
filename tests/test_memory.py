@@ -12,45 +12,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# We need to mock settings before importing the agent so it doesn't
-# try to read env vars at import time.
-import sys
-from types import SimpleNamespace
-
-_mock_settings = SimpleNamespace(
-    anthropic_api_key="test-key",
-    claude_model="claude-sonnet-4-20250514",
-    claude_model_haiku="claude-haiku-4-5-20251001",
-    embedding_model="voyage-3",
-    embedding_model_fallback="text-embedding-3-small",
-    embedding_dimensions=1536,
-    similarity_threshold=0.78,
-    memory_compaction_min_interactions=5,
-    memory_compaction_interval_minutes=30,
-    memory_compaction_interval_hours=6,
-    memory_high_confidence=0.85,
-    memory_low_confidence=0.60,
-    voyage_api_key="test-voyage-key",
-    supabase_url="https://test.supabase.co",
-    supabase_key="test-key",
-)
-
-# Patch settings before any project imports
-with patch.dict("sys.modules", {}):
-    pass
-
-import importlib
-
-# Patch config.settings at the module level
-_settings_mod = MagicMock()
-_settings_mod.settings = _mock_settings
-sys.modules["config.settings"] = _settings_mod
-sys.modules["config"] = MagicMock()
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 FAKE_EMBEDDING = [0.1] * 1536
 
 
@@ -93,14 +54,7 @@ def _make_memory_row(similarity: float) -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
-
-
 class TestCompactInteractions:
-    """Tests for MemoryAgent.compact_interactions()."""
-
     @pytest.mark.asyncio
     @patch("agents.memory_agent.mark_interactions_compacted", new_callable=AsyncMock)
     @patch("agents.memory_agent.upsert_memory_nugget", new_callable=AsyncMock)
@@ -109,7 +63,6 @@ class TestCompactInteractions:
     async def test_compacts_when_enough_interactions(
         self, mock_get, mock_embed, mock_upsert, mock_mark
     ):
-        """Should create nuggets when >= 5 uncompacted interactions exist."""
         mock_get.return_value = [_make_interaction(i) for i in range(6)]
 
         mock_client = MagicMock()
@@ -124,26 +77,21 @@ class TestCompactInteractions:
 
         assert count == 1
         mock_upsert.assert_called_once()
-        # Should mark exactly 5 interactions as compacted
         mock_mark.assert_called_once()
         marked_ids = mock_mark.call_args[0][0]
         assert len(marked_ids) == 5
-
-        # Verify Haiku model was used
         call_kwargs = mock_client.messages.create.call_args
         assert call_kwargs.kwargs["model"] == "claude-haiku-4-5-20251001"
 
     @pytest.mark.asyncio
     @patch("agents.memory_agent.get_uncompacted_interactions", new_callable=AsyncMock)
     async def test_skips_when_too_few_interactions(self, mock_get):
-        """Should skip compaction when fewer than 5 interactions exist."""
         mock_get.return_value = [_make_interaction(i) for i in range(3)]
 
         from agents.memory_agent import MemoryAgent
 
         agent = MemoryAgent(anthropic_client=MagicMock())
         count = await agent.compact_interactions()
-
         assert count == 0
 
     @pytest.mark.asyncio
@@ -154,7 +102,6 @@ class TestCompactInteractions:
     async def test_handles_malformed_llm_response(
         self, mock_get, mock_embed, mock_upsert, mock_mark
     ):
-        """Should return 0 nuggets if the LLM returns invalid JSON."""
         mock_get.return_value = [_make_interaction(i) for i in range(5)]
 
         mock_client = MagicMock()
@@ -178,7 +125,6 @@ class TestCompactInteractions:
     async def test_handles_single_object_response(
         self, mock_get, mock_embed, mock_upsert, mock_mark
     ):
-        """Should handle LLM returning a single object instead of an array."""
         mock_get.return_value = [_make_interaction(i) for i in range(5)]
 
         single = json.dumps(
@@ -198,7 +144,6 @@ class TestCompactInteractions:
 
         agent = MemoryAgent(anthropic_client=mock_client)
         count = await agent.compact_interactions()
-
         assert count == 1
 
     @pytest.mark.asyncio
@@ -209,7 +154,6 @@ class TestCompactInteractions:
     async def test_handles_markdown_fenced_json(
         self, mock_get, mock_embed, mock_upsert, mock_mark
     ):
-        """Should extract JSON from markdown code fences."""
         mock_get.return_value = [_make_interaction(i) for i in range(5)]
 
         fenced = f"```json\n{_make_nugget_response()}\n```"
@@ -222,13 +166,10 @@ class TestCompactInteractions:
 
         agent = MemoryAgent(anthropic_client=mock_client)
         count = await agent.compact_interactions()
-
         assert count == 1
 
 
 class TestSearchMemories:
-    """Tests for MemoryAgent.search_memories()."""
-
     @pytest.mark.asyncio
     @patch("agents.memory_agent.increment_memory_usage", new_callable=AsyncMock)
     @patch("agents.memory_agent.search_memory", new_callable=AsyncMock)
@@ -236,7 +177,6 @@ class TestSearchMemories:
     async def test_returns_top_2_and_increments_usage(
         self, mock_embed, mock_search, mock_increment
     ):
-        """Should return top 2 memories and increment their usage counts."""
         rows = [_make_memory_row(0.92), _make_memory_row(0.88)]
         mock_search.return_value = rows
 
@@ -251,8 +191,6 @@ class TestSearchMemories:
 
 
 class TestTokenEfficiencyRouter:
-    """Tests for MemoryAgent.get_context_for_query()."""
-
     @pytest.mark.asyncio
     @patch("agents.memory_agent.search_knowledge_base", new_callable=AsyncMock)
     @patch("agents.memory_agent.increment_memory_usage", new_callable=AsyncMock)
@@ -261,7 +199,6 @@ class TestTokenEfficiencyRouter:
     async def test_high_confidence_memory_only(
         self, mock_embed, mock_search_mem, mock_inc, mock_rag
     ):
-        """Score > 0.85 should use memory only, no RAG call."""
         mock_search_mem.return_value = [_make_memory_row(0.92)]
 
         from agents.memory_agent import MemoryAgent
@@ -280,7 +217,6 @@ class TestTokenEfficiencyRouter:
     async def test_medium_confidence_memory_plus_rag(
         self, mock_embed, mock_search_mem, mock_inc, mock_rag
     ):
-        """Score 0.60-0.85 should use memory + 1 RAG chunk."""
         mock_search_mem.return_value = [_make_memory_row(0.75)]
         mock_rag.return_value = [
             {
@@ -309,7 +245,6 @@ class TestTokenEfficiencyRouter:
     async def test_low_confidence_full_rag(
         self, mock_embed, mock_search_mem, mock_inc, mock_rag
     ):
-        """Score < 0.60 should use 3 RAG chunks only."""
         mock_search_mem.return_value = [_make_memory_row(0.40)]
         mock_rag.return_value = [
             {
@@ -329,7 +264,6 @@ class TestTokenEfficiencyRouter:
 
         assert "RAG chunk 0" in context
         assert "RAG chunk 2" in context
-        # Memory content should NOT appear in low-confidence path
         assert "iOS subscription purchase" not in context
         mock_rag.assert_called_once_with("something new", top_k=3)
 
@@ -340,7 +274,6 @@ class TestTokenEfficiencyRouter:
     async def test_no_memories_falls_to_rag(
         self, mock_embed, mock_search_mem, mock_rag
     ):
-        """No memories at all should fall through to full RAG."""
         mock_search_mem.return_value = []
         mock_rag.return_value = [
             {

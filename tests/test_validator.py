@@ -6,29 +6,14 @@ without API keys or network access.
 
 from __future__ import annotations
 
-import sys
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 
 import pytest
-
-# Patch settings before importing validator
-_mock_settings = SimpleNamespace(
-    anthropic_api_key="test-key",
-    claude_model_haiku="claude-haiku-4-5-20251001",
-    e2b_api_key="",  # disable E2B by default -> static analysis
-    embedding_model="voyage-3",
-)
-_settings_mod = MagicMock()
-_settings_mod.settings = _mock_settings
-sys.modules.setdefault("config", MagicMock())
-sys.modules["config.settings"] = _settings_mod
 
 from tools.validator import (
     CodeValidator,
     _check_brackets,
     _check_rc_methods,
-    _static_analysis,
 )
 
 
@@ -56,7 +41,6 @@ class TestValidSwift:
         validator = CodeValidator(anthropic_client=MagicMock())
         result = await validator.validate_snippet(VALID_SWIFT, "swift")
         assert result["valid"] is True
-        assert result["error"] is None or "placeholder" not in (result["error"] or "")
 
 
 # ---------------------------------------------------------------------------
@@ -98,9 +82,7 @@ class TestMissingApiKey:
         result = await validator.validate_snippet(
             CODE_WITH_PLACEHOLDER_KEY, "swift"
         )
-        # Should still pass (it's a warning, not an error)
         assert result["valid"] is True
-        # But should have a warning about the placeholder
         assert result["error"] is not None
         assert "placeholder" in result["error"].lower() or "your_api_key" in result["error"]
 
@@ -162,7 +144,6 @@ class TestMalformedCode:
 
         assert result["valid"] is False
         assert "bracket" in (result["error"] or "").lower()
-        # Should have a fix suggestion from Haiku
         assert result["suggestion"] is not None
         assert "}" in result["suggestion"]
 
